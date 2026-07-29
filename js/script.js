@@ -748,6 +748,17 @@ function renderCaso(index) {
             const data = comp[name];
             const isBest = (name === 'Backtracking');
             const icon = isBest ? '<i class="fas fa-star" style="color:#facc15;"></i>' : '';
+            
+            let caminoMostrar = [...data.camino];
+            if (caso.tipo === 'libre') {
+                if (caminoMostrar.length === 1) {
+                    caminoMostrar = [caso.origen, caso.destino];
+                } else if (caminoMostrar.length > 1) {
+                    caminoMostrar[0] = caso.origen;
+                    caminoMostrar[caminoMostrar.length - 1] = caso.destino;
+                }
+            }
+            
             html += `
                 <div class="algo-card ${isBest ? 'highlight' : ''}">
                     <div class="algo-name">
@@ -760,7 +771,7 @@ function renderCaso(index) {
                     </div>
                     <div class="path-preview">
                         <i class="fas fa-route" style="color:#64748b;margin-right:4px;"></i>
-                        ${data.camino.join(' → ').replace(/_/g, ' ')}
+                        ${caminoMostrar.join(' → ').replace(/_/g, ' ')}
                     </div>
                 </div>
             `;
