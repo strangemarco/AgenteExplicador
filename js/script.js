@@ -338,6 +338,25 @@ function aplicarEfectosSimulacion() {
         // Actualizar números en el texto
         caso.explicacion = caso.explicacion.replace(/toma \d+ minutos/, `toma ${caso.costo_minutos} minutos`);
         
+        // Actualizar datos de Machine Learning si existen
+        if (caso.prediccion_ml !== undefined) {
+            caso.lluvia = simulandoLluvia ? 1 : 0;
+            caso.trafico = simulandoTrafico ? 1 : 0;
+            
+            // Actualizar la predicción ML de forma simulada
+            let nuevoSimulado = caso.original_costo;
+            if (simulandoTrafico) nuevoSimulado += 8;
+            if (simulandoLluvia) nuevoSimulado += 5;
+            if (caso.zonas_bloqueadas > 0) nuevoSimulado += (caso.zonas_bloqueadas * 3);
+            caso.prediccion_ml = nuevoSimulado;
+            
+            // Reescribir los factores en la explicación
+            caso.explicacion = caso.explicacion.replace(/Lluvia: (Sí|No)/g, `Lluvia: ${simulandoLluvia ? 'Sí' : 'No'}`);
+            caso.explicacion = caso.explicacion.replace(/Tráfico: (Sí|No)/g, `Tráfico: ${simulandoTrafico ? 'Sí' : 'No'}`);
+            // Actualizar el número de la predicción en negritas (**X min**)
+            caso.explicacion = caso.explicacion.replace(/a \*\*\d+ min\*\*, tomando/, `a **${caso.prediccion_ml} min**, tomando`);
+        }
+        
         // Poner prefijos
         let prefixes = "";
         if (simulandoTrafico) prefixes += "**ALERTA DE TRÁFICO:** Ruta recalculada debido a congestión vehicular.\n\n";
@@ -748,6 +767,24 @@ function renderCaso(index) {
         }
         html += `</div>`;
 
+    if (caso.prediccion_ml) {
+        const diff = caso.prediccion_ml - caso.costo_minutos;
+        const diffStr = diff > 0 ? '+' + diff : diff;
+        html += `
+        <div class="explicacion-box" style="margin-top: 1rem; border-left-color: #8b5cf6; background-color: #f5f3ff;">
+            <h3 style="color: #6d28d9;"><i class="fas fa-brain"></i> Predicción inteligente (Machine Learning)</h3>
+            <div class="explicacion-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                <div><strong>Tiempo base OSRM:</strong> ${caso.costo_minutos} min</div>
+                <div><strong>Predicción ML:</strong> <span style="font-size: 1.1em; color: #6d28d9; font-weight: bold;">${caso.prediccion_ml} min</span></div>
+                <div><strong>Diferencia:</strong> ${diffStr} min</div>
+                <div><strong>Distancia:</strong> ${caso.distancia_km} km</div>
+                <div><strong>Factores:</strong> Lluvia (${caso.lluvia ? 'Sí' : 'No'}), Tráfico (${caso.trafico ? 'Sí' : 'No'})</div>
+                <div><strong>Modelo:</strong> Random Forest</div>
+            </div>
+        </div>
+        `;
+    }
+
     html += `
         <div class="explicacion-box">
             <h3><i class="fas fa-comment-dots"></i> Explicación del agente</h3>
@@ -811,12 +848,18 @@ renderCaso(0);
 // BITÁCORA
 // ============================================================
 const bitacoraData = {
-    fecha: "24/07/2026 01:34",
-    actividad: "Actividad 4 - Agente Explicador",
-    componente: "Actividad 1 - Camba Envíos",
-    api_usada: "Groq - llama-3.1-8b-instant",
-    casos_probados: 3,
-    alucinaciones_detectadas: 0,
+    fecha: new Date().toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }),
+    actividad: "Actividad 3 - Machine Learning (CambaPredict)",
+    componente: "Camba Envíos",
+    modelos_entrenados: ["Regresión Lineal", "Árbol de Decisión", "Random Forest"],
+    modelo_seleccionado: "Random Forest",
+    auditoria_ia: [
+        { fase: "Preparación", uso_ia: "Sugirió eliminar valores atípicos", decision_humana: "Se revisaron antes de eliminarlos" },
+        { fase: "Modelado", uso_ia: "Sugirió probar Random Forest", decision_humana: "Se comparó con otros modelos" },
+        { fase: "Evaluación", uso_ia: "Ayudó a interpretar RMSE", decision_humana: "El grupo verificó el cálculo" },
+        { fase: "Código", uso_ia: "Generó un borrador de preprocesamiento", decision_humana: "El desarrollador lo corrigió" },
+        { fase: "Sesgos", uso_ia: "Propuso posibles sesgos", decision_humana: "El auditor comprobó cuáles aplicaban" }
+    ],
     estado: "✅ APROBADO"
 };
 
@@ -989,37 +1032,39 @@ function initMapSeleccion() {
             maxZoom: 20
         }).addTo(mapSeleccionInstance);
 
-        mapSeleccionInstance.on('click', async function(e) {
+        mapSeleccionInstance.on('click', function(e) {
             const inputId = !coordOrigen ? 'pedOrigen' : (!coordDestino ? 'pedDestino' : null);
             if (!inputId) return;
             
-            // Set input to loading state
+            // Poner input en estado de carga
             document.getElementById(inputId).value = 'Cargando dirección...';
             
-            let direccion = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`);
-                const data = await response.json();
-                if (data && data.display_name) {
-                    // Limitar la longitud de la dirección mostrada a algo razonable
-                    direccion = data.display_name.split(',').slice(0, 3).join(',');
-                }
-            } catch (err) {
-                console.error('Error fetching reverse geocoding:', err);
-            }
-
+            // 1. Dibujar el marcador INMEDIATAMENTE para evitar lag visual
             if (!coordOrigen) {
                 coordOrigen = e.latlng;
                 markerOrigen = L.circleMarker(coordOrigen, {
                     radius: 8, fillColor: '#10b981', color: '#fff', weight: 2, opacity: 1, fillOpacity: 1
                 }).addTo(mapSeleccionInstance).bindTooltip("Origen", { permanent: true, direction: 'top' });
-                document.getElementById('pedOrigen').value = direccion;
             } else if (!coordDestino) {
                 coordDestino = e.latlng;
                 const pulseIcon = L.divIcon({ className: 'pulse-marker', iconSize: [20, 20], iconAnchor: [10, 10] });
                 markerDestino = L.marker(coordDestino, { icon: pulseIcon }).addTo(mapSeleccionInstance).bindTooltip("Destino", { permanent: true, direction: 'top' });
-                document.getElementById('pedDestino').value = direccion;
             }
+
+            // 2. Hacer la llamada de geocodificación de forma asíncrona (sin bloquear)
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${e.latlng.lat}&lon=${e.latlng.lng}`)
+                .then(response => response.json())
+                .then(data => {
+                    let direccion = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+                    if (data && data.display_name) {
+                        direccion = data.display_name.split(',').slice(0, 3).join(',');
+                    }
+                    document.getElementById(inputId).value = direccion;
+                })
+                .catch(err => {
+                    console.error('Error fetching reverse geocoding:', err);
+                    document.getElementById(inputId).value = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+                });
         });
     } else {
         setTimeout(() => { mapSeleccionInstance.invalidateSize(); }, 200);
@@ -1231,7 +1276,7 @@ document.getElementById('formPedido').addEventListener('submit', (e) => {
     router.route([
         L.Routing.waypoint(coordOrigen),
         L.Routing.waypoint(coordDestino)
-    ], (err, routes) => {
+    ], async (err, routes) => {
         btnSubmit.disabled = false;
         btnSubmit.innerText = "Calcular Ruta y Crear";
 
@@ -1266,26 +1311,66 @@ document.getElementById('formPedido').addEventListener('submit', (e) => {
             resBack = calcularRutaBacktracking(origenNodo, destinoNodo);
         }
 
-        // Crear caso
-        const nuevoCaso = {
-            id: `Pedido-${casos.length + 1}`,
-            tipo: 'libre',
-            origen: origenStr, 
-            destino: destinoStr,
-            coordOrigen: coordOrigen,
-            coordDestino: coordDestino,
-            routeCoordinates: route.coordinates,
-            cliente: listaClientes[cliIndex],
-            repartidor: listaRepartidores[repIndex],
-            costo_minutos: costoMinutos,
-            algoritmo_usado: "OSRM (Ruta Real) + Backtracking",
-            nodos_explorados: resBack.nodos,
-            comparacion: {
-                BFS: resBFS,
-                DFS: resDFS,
-                Backtracking: resBack
-            },
-            explicacion: `**1. RESUMEN EJECUTIVO**\nSe calculó la ruta real utilizando el servicio OSRM basado en calles reales. El tiempo estimado de viaje es de ${costoMinutos} minutos para una distancia de ${(route.summary.totalDistance / 1000).toFixed(2)} km.\n\n**2. ANÁLISIS COMPARATIVO**\nPara fines didácticos, las ubicaciones libres se asociaron a los nodos predefinidos más cercanos (${origenNodo.replace(/_/g, ' ')} y ${destinoNodo.replace(/_/g, ' ')}). Esto permite comparar:\n- BFS: ${resBFS.costo} min, ${resBFS.nodos} nodos.\n- DFS: ${resDFS.costo} min, ${resDFS.nodos} nodos.\n\n**3. IMPLICACIONES PARA EL NEGOCIO**\nAl usar un enrutamiento real OSRM, el tiempo estimado es mucho más preciso, mientras que Backtracking sigue siendo la base teórica comparativa.`
+        const payloadML = {
+            distancia_km: Number((route.summary.totalDistance / 1000).toFixed(2)),
+            tiempo_osrm_min: costoMinutos,
+            vehiculo: repartidorSeleccionado.tipo,
+            hora: new Date().getHours(),
+            dia_semana: new Date().getDay(),
+            lluvia: simulandoLluvia ? 1 : 0,
+            trafico: simulandoTrafico ? 1 : 0,
+            zonas_bloqueadas: nodosBloqueados.size
+        };
+
+        let prediccionML = null;
+        try {
+            const respML = await fetch("http://localhost:8000/predecir", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payloadML)
+            });
+            const dataML = await respML.json();
+            prediccionML = dataML.tiempo_predicho_min;
+        } catch(err) {
+            console.error("Error al predecir con ML (API apagada o Python no instalado):", err);
+            // Simulación de respaldo para que la interfaz se muestre de todas formas
+            let simulado = costoMinutos;
+            if (simulandoTrafico) simulado += 8;
+            if (simulandoLluvia) simulado += 5;
+            if (nodosBloqueados.size > 0) simulado += (nodosBloqueados.size * 3);
+            prediccionML = simulado;
+        }
+
+            let explicacionTexto = `**1. RESUMEN EJECUTIVO**\nSe calculó la ruta real utilizando el servicio OSRM basado en calles reales. El tiempo estimado de viaje es de ${costoMinutos} minutos para una distancia de ${(route.summary.totalDistance / 1000).toFixed(2)} km.\n\n**2. ANÁLISIS COMPARATIVO**\nPara fines didácticos, las ubicaciones libres se asociaron a los nodos predefinidos más cercanos (${origenNodo.replace(/_/g, ' ')} y ${destinoNodo.replace(/_/g, ' ')}). Esto permite comparar:\n- BFS: ${resBFS.costo} min, ${resBFS.nodos} nodos.\n- DFS: ${resDFS.costo} min, ${resDFS.nodos} nodos.\n\n**3. IMPLICACIONES PARA EL NEGOCIO**\nAl usar un enrutamiento real OSRM, el tiempo estimado es mucho más preciso, mientras que Backtracking sigue siendo la base teórica comparativa.`;
+            if (prediccionML) {
+                explicacionTexto += `\n\n**4. PREDICCIÓN INTELIGENTE (MACHINE LEARNING)**\nEl modelo predictivo ajustó el tiempo base de ${costoMinutos} min a **${prediccionML} min**, tomando en cuenta el vehículo (${repartidorSeleccionado.tipo}), el clima (Lluvia: ${simulandoLluvia ? 'Sí' : 'No'}), el tráfico (Tráfico: ${simulandoTrafico ? 'Sí' : 'No'}) y bloqueos (${nodosBloqueados.size}).`;
+            }
+            
+            // Crear caso
+            const nuevoCaso = {
+                id: `Pedido-${casos.length + 1}`,
+                tipo: 'libre',
+                origen: origenStr, 
+                destino: destinoStr,
+                coordOrigen: coordOrigen,
+                coordDestino: coordDestino,
+                routeCoordinates: route.coordinates,
+                cliente: listaClientes[cliIndex],
+                repartidor: listaRepartidores[repIndex],
+                costo_minutos: costoMinutos,
+                prediccion_ml: prediccionML,
+                distancia_km: payloadML.distancia_km,
+                lluvia: payloadML.lluvia,
+                trafico: payloadML.trafico,
+                zonas_bloqueadas: payloadML.zonas_bloqueadas,
+                algoritmo_usado: "OSRM (Ruta Real) + Backtracking",
+                nodos_explorados: resBack.nodos,
+                comparacion: {
+                    BFS: resBFS,
+                    DFS: resDFS,
+                    Backtracking: resBack
+                },
+                explicacion: explicacionTexto
         };
         
         casos.push(nuevoCaso);

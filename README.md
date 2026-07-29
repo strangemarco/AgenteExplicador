@@ -1,32 +1,47 @@
-#  Camba Envíos (v2.0) - Logística y Entregas Inteligentes
+# Camba Envíos & CambaPredict (v3.0) - Logística e Inteligencia Artificial
 
-Camba Envíos es un sistema interactivo de simulación y gestión de rutas logísticas. Esta plataforma simula un entorno empresarial realista de envíos en Santa Cruz de la Sierra, integrando algoritmos de búsqueda para determinar la ruta óptima de reparto.
+Camba Envíos es un sistema interactivo de simulación y gestión de rutas logísticas. Esta plataforma simula un entorno empresarial realista de envíos en Santa Cruz de la Sierra, integrando algoritmos de búsqueda para determinar la ruta óptima de reparto y modelos de **Machine Learning** para predecir con precisión los tiempos de entrega.
 
-## Novedades y Cambios Recientes (Actualización Premium)
+## 🚀 Novedades de la Versión 3.0 (Machine Learning)
 
-Durante nuestra última sesión de trabajo, llevamos el sistema de un prototipo escolar a una interfaz de nivel profesional (SaaS Premium), implementando las siguientes mejoras:
+En esta última gran actualización, hemos transformado el sistema en una plataforma inteligente (**CambaPredict**), cumpliendo con todos los requisitos de integración de Inteligencia Artificial (Actividad 3).
+
+### 1. Predicción Inteligente de Tiempos
+- **Dataset Sintético:** Se generó un script en Python (`generar_dataset.py`) que crea un dataset histórico realista (`entregas_camba.csv`) con 500 registros, tomando en cuenta la distancia, el tiempo base OSRM, el vehículo, la lluvia, el tráfico y las zonas bloqueadas.
+- **Entrenamiento de Modelos:** Se incluyó un cuaderno de Jupyter (`entrenar_modelo.ipynb`) preparado para Google Colab, donde se limpian los datos y se entrenan 3 modelos: *Regresión Lineal*, *Árbol de Decisión* y *Random Forest*.
+- **Random Forest:** Fue seleccionado como el mejor modelo por su menor Error Cuadrático Medio (RMSE) y mayor precisión (R²). El modelo entrenado se exporta automáticamente como `modelo_camba.pkl`.
+
+### 2. Integración Backend (API)
+- **FastAPI:** Se desarrolló un servidor local ligero (`api.py`) que carga el modelo de Machine Learning y levanta un endpoint `POST /predecir`. 
+- **Conexión en Tiempo Real:** Al hacer clic en el mapa y generar una nueva ruta, el Frontend se comunica instantáneamente con el Backend para solicitar una predicción real basada en los datos climáticos y logísticos del momento.
+
+### 3. Interfaz de Usuario y Resiliencia
+- **Explicación del Agente:** El sistema ahora incluye un párrafo dinámico en la explicación del Agente, donde detalla cómo Machine Learning ajustó el tiempo base tomando en cuenta los factores climáticos.
+- **Plan B Automático (Fallback):** Si el servidor de Python está apagado o no está instalado, la página web no se rompe. Captura el error de conexión y activa un modelo matemático de contingencia en JavaScript puro, permitiendo que la demostración de la interfaz continúe funcionando perfectamente sin interrupciones visuales.
+- **Bitácora de Auditoría de IA:** Al final de la página, se actualizó la bitácora para registrar la auditoría de cada intervención humana vs IA durante las fases de Preparación, Modelado, Evaluación, Código y Sesgos.
+
+---
+
+## 💻 Versión 2.0 (UI/UX y Algoritmos)
 
 ### 1. Interfaz y Experiencia de Usuario (UI/UX)
-- **Dashboard en Tiempo Real:** Se integró la librería `Chart.js` para crear un gráfico Doughnut interactivo que contabiliza los pedidos y se actualiza al instante cada vez que un pedido cambia de estado.
-- **Skeleton Loaders:** Se añadieron efectos de carga simulados ("skeletons" parpadeantes) entre las transiciones de los casos para dar una sensación de software empresarial robusto.
-- **Progress Tracker Visual:** Incorporamos una barra de progreso estilo UberEats/PedidosYa (Creado → En Camino → Entregado) sobre el mapa, que avanza llenando su barra azul conforme la simulación del pedido avanza.
-- **Radar de Destino (Leaflet):** Se mejoró el marcador visual de destino usando un ícono CSS personalizado que emite ondas tipo radar continuamente.
-- **Paginación y Pestañas Inteligentes:** Las pestañas de la parte superior ahora mantienen fijos los 3 casos iniciales y gestionan el caso "nuevo/actual" de forma temporal para evitar el desborde de la interfaz.
+- **Dashboard en Tiempo Real:** Gráfico Doughnut (`Chart.js`) interactivo que contabiliza los pedidos.
+- **Skeleton Loaders:** Efectos de carga simulados ("skeletons" parpadeantes) entre las transiciones de los casos.
+- **Progress Tracker Visual:** Barra de progreso estilo UberEats (Creado → En Camino → Entregado) sobre el mapa.
+- **Radar de Destino (Leaflet):** Marcador visual de destino que emite ondas tipo radar continuamente.
+- **Paginación Inteligente:** Pestañas superiores que gestionan casos temporales sin desbordar la interfaz.
 
 ### 2. Simulación y Lógica Autónoma
-- **Transición Automática de Estados:** Todos los pedidos nuevos nacen como "Recién Creado". A los 5 segundos pasan a "En Camino" y a los 8 segundos extra se marcan como "Entregado", con notificaciones "Toast" integradas.
-- **Sincronización Total UI:** Hacer clic en un pedido de la barra lateral ahora sincroniza inmediatamente la barra de progreso (Progress Tracker) sin tener que recargar el mapa ni perder los efectos visuales.
-- **Persistencia de Datos Mejorada:** El LocalStorage guarda no solo las rutas, sino también los colores y el estado actual de la simulación.
+- **Transición Automática:** Los pedidos nuevos pasan a "En Camino" y luego a "Entregado" de forma autónoma con notificaciones Toast.
+- **Sincronización Total UI:** La barra lateral y el Progress Tracker se comunican instantáneamente sin recargas.
+- **Persistencia:** LocalStorage guarda rutas, colores y estado actual de simulación.
 
 ### 3. Clima y Eventos de Tráfico
-- **Sincronización de Costos:** Se arregló el desajuste de minutos. Ahora, cuando se enciende el simulador de Lluvia o Tráfico, el tiempo se actualiza correctamente no solo en la tarjeta principal, sino en todas las tarjetas de los algoritmos y se reescribe el texto de la Explicación del Agente para mantener perfecta coherencia.
+- **Sincronización Global:** Al encender simulador de Lluvia o Tráfico, el tiempo y los textos se actualizan correctamente no solo en la tarjeta principal, sino en el texto de Machine Learning y en todas las comparativas.
 
 ### 4. Motor de Inteligencia (Algoritmos)
-- **Cálculo en Tiempo Real de 3 Algoritmos:** El código estático o el antiguo Dijkstra se sustituyó. Ahora, al crear un pedido nuevo de forma manual, el sistema ejecuta internamente en milisegundos:
+- **Cálculo de 3 Algoritmos:** Al crear un pedido, el sistema ejecuta internamente:
   - **BFS** (Búsqueda en Anchura)
   - **DFS** (Búsqueda en Profundidad)
   - **Backtracking con Poda**
-- El resultado dinámico de esta ejecución es lo que nutre las 3 tarjetas comparativas en pantalla, garantizando que Backtracking demuestre ser la ruta óptima para cada nuevo pedido.
-
----
-**Desarrollado para la Actividad 4 - Agentes Inteligentes.**
+- El resultado demuestra de forma dinámica por qué Backtracking calcula la ruta teórica óptima.
