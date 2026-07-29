@@ -41,6 +41,7 @@
                 Repartidor</button>
             <button class="btn-admin" onclick="openModal('modalPedido')"><i class="fas fa-box"></i> Nuevo
                 Pedido</button>
+            <button class="btn-admin" onclick="openZonasPeligroModal()" style="background: #ef4444;"><i class="fas fa-skull-crossbones"></i> Zonas Peligro</button>
         </div>
 
         <!-- TABS -->
@@ -200,6 +201,46 @@
                     <button type="button" class="btn-submit" style="background-color: #64748b; flex: 1;" id="btnLimpiarPuntos">Limpiar Puntos</button>
                     <button type="button" class="btn-submit" style="flex: 1;" onclick="closeModal('modalMapaSeleccion')">Confirmar Puntos</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Pedido -->
+    <div id="modalEditarPedido" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Cambiar Vehículo</h3>
+                <button class="close-btn" onclick="closeModal('modalEditarPedido')">&times;</button>
+            </div>
+            <form id="formEditarPedido" class="modal-form">
+                <div class="form-group">
+                    <label>Seleccionar Nuevo Vehículo para este Pedido</label>
+                    <select id="editTipoVehiculo" required>
+                        <option value="Moto">Moto</option>
+                        <option value="Bicicleta">Bicicleta</option>
+                        <option value="Camioneta">Camioneta</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit">Guardar y Recalcular Ruta</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Zonas de Peligro -->
+    <div id="modalZonasPeligro" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="color: #ef4444;"><i class="fas fa-skull-crossbones"></i> Zonas de Peligro</h3>
+                <button class="close-btn" onclick="closeModal('modalZonasPeligro')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem; color: #64748b; font-size: 0.9rem;">
+                    Selecciona las zonas cerradas o de alto riesgo. Los algoritmos evitarán trazar rutas por estas zonas.
+                </p>
+                <div id="zonasList" style="max-height: 300px; overflow-y: auto; background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+                    <!-- Checkboxes generados por JS -->
+                </div>
+                <button type="button" class="btn-submit" style="background: #ef4444;" onclick="guardarZonasPeligro()">Guardar Zonas Bloqueadas</button>
             </div>
         </div>
     </div>

@@ -149,6 +149,7 @@ const defaultRecorridos = [
 ];
 
 let recorridosDelDia = JSON.parse(localStorage.getItem('recorridos')) || defaultRecorridos;
+let nodosBloqueados = new Set(JSON.parse(localStorage.getItem('nodosBloqueados')) || []);
 
 let currentPageRecorridos = 1;
 const ITEMS_PER_PAGE = 5;
@@ -172,12 +173,22 @@ function renderRecorridos() {
         // Encontrar el índice original en el arreglo no invertido
         const originalIndex = recorridosDelDia.length - 1 - (start + i);
         const hasCaso = rec.casoIndex !== undefined;
+        const casoObj = hasCaso ? casos[rec.casoIndex] : null;
+        const isLibre = casoObj && casoObj.tipo === 'libre';
+
         const pointerStyle = hasCaso ? "cursor: pointer;" : "";
         const hoverEffect = hasCaso ? "onmouseover=\"this.style.background='#f1f5f9'\" onmouseout=\"this.style.background='transparent'\"" : "";
         const clickAction = hasCaso ? `onclick="window.cargarCaso(${rec.casoIndex})"` : "";
         
+        const editButton = (hasCaso && isLibre) ? `
+            <button class="btn-edit" onclick="event.stopPropagation(); window.openEditModal(${rec.casoIndex})" style="position: absolute; right: 10px; top: 10px; background: none; border: none; color: #94a3b8; cursor: pointer;" title="Cambiar Vehículo">
+                <i class="fas fa-pencil-alt"></i>
+            </button>
+        ` : '';
+        
         html += `
-            <li style="${pointerStyle} transition: background 0.2s; border-radius: 8px;" ${hoverEffect} ${clickAction} title="${hasCaso ? 'Ver Pedido' : ''}">
+            <li style="${pointerStyle} transition: background 0.2s; border-radius: 8px; position: relative;" ${hoverEffect} ${clickAction} title="${hasCaso ? 'Ver Pedido' : ''}">
+                ${editButton}
                 <div class="timeline-dot" style="background: ${rec.color}; border-color: white;"></div>
                 <div class="timeline-content">
                     <div class="timeline-title">${rec.cliente} - ${rec.destino}</div>
@@ -424,6 +435,21 @@ function renderMap(casoIndex) {
     markers.forEach(m => mapInstance.removeLayer(m));
     markers = [];
 
+    // Dibujar TODAS las Zonas de Peligro bloqueadas independientemente de la ruta
+    nodosBloqueados.forEach(nodo => {
+        if (nodosDisponibles[nodo]) {
+            const blockedIcon = L.divIcon({
+                html: '<div style="background:#ef4444;color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 8px red;"><i class="fas fa-skull-crossbones" style="font-size:12px;"></i></div>',
+                className: 'blocked-marker',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+            const m = L.marker(nodosDisponibles[nodo], { icon: blockedIcon }).addTo(mapInstance);
+            m.bindTooltip("BLOQUEADO: " + nodo.replace(/_/g, ' '), { permanent: true, direction: 'top', offset: [0, -10] });
+            markers.push(m);
+        }
+    });
+
     if (caso.tipo === 'libre') {
         const rutaCoords = caso.routeCoordinates;
         
@@ -460,13 +486,17 @@ function renderMap(casoIndex) {
 
         // Animación
         if (rutaCoords.length > 0) {
-            const truckIcon = L.divIcon({
-                html: '<i class="fas fa-truck" style="color:#1e3a5f; font-size: 20px; background: white; padding: 4px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></i>',
+            let iconClass = "fa-truck";
+            if (caso.repartidor && caso.repartidor.tipo === "Bicicleta") iconClass = "fa-bicycle";
+            else if (caso.repartidor && caso.repartidor.tipo === "Moto") iconClass = "fa-motorcycle";
+            
+            const vehicleIcon = L.divIcon({
+                html: `<i class="fas ${iconClass}" style="color:#1e3a5f; font-size: 20px; background: white; padding: 4px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></i>`,
                 className: 'truck-marker',
                 iconSize: [30, 30],
                 iconAnchor: [15, 15]
             });
-            const truckMarker = L.marker(rutaCoords[0], { icon: truckIcon }).addTo(mapInstance);
+            const truckMarker = L.marker(rutaCoords[0], { icon: vehicleIcon }).addTo(mapInstance);
             markers.push(truckMarker);
             
             let i = 0;
@@ -508,6 +538,9 @@ function renderMap(casoIndex) {
             let markerColor = '#2563eb';
             if (isOrigen) markerColor = '#10b981';
             
+            let isBlocked = nodosBloqueados.has(nodo);
+            if (isBlocked) return; // Ya se dibujó arriba como calavera
+            
             let nodeMarker;
             
             if (isDestino) {
@@ -545,14 +578,18 @@ function renderMap(casoIndex) {
         
         // Simular animación del camión moviéndose
         if (rutaCoords.length > 0) {
-            const truckIcon = L.divIcon({
-                html: '<i class="fas fa-truck" style="color:#1e3a5f; font-size: 20px; background: white; padding: 4px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></i>',
+            let iconClass = "fa-truck";
+            if (caso.repartidor && caso.repartidor.tipo === "Bicicleta") iconClass = "fa-bicycle";
+            else if (caso.repartidor && caso.repartidor.tipo === "Moto") iconClass = "fa-motorcycle";
+            
+            const vehicleIcon = L.divIcon({
+                html: `<i class="fas ${iconClass}" style="color:#1e3a5f; font-size: 20px; background: white; padding: 4px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></i>`,
                 className: 'truck-marker',
                 iconSize: [30, 30],
                 iconAnchor: [15, 15]
             });
             
-            const truckMarker = L.marker(rutaCoords[0], { icon: truckIcon }).addTo(mapInstance);
+            const truckMarker = L.marker(rutaCoords[0], { icon: vehicleIcon }).addTo(mapInstance);
             markers.push(truckMarker);
             
             let i = 0;
@@ -645,9 +682,9 @@ function renderCaso(index) {
     }
 
     let html = `
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <div class="info-container" style="display: flex; gap: 1rem; flex-wrap: wrap;">
             <!-- INFO CLIENTE -->
-            <div class="client-info" style="flex: 1;">
+            <div class="client-info" style="flex: 1; min-width: 250px;">
                 <div class="client-avatar">${caso.cliente.avatar}</div>
                 <div class="client-details">
                     <span class="client-name">Cliente: ${caso.cliente.nombre}</span>
@@ -656,7 +693,7 @@ function renderCaso(index) {
             </div>
 
             <!-- INFO REPARTIDOR -->
-            <div class="client-info" style="flex: 1;">
+            <div class="client-info" style="flex: 1; min-width: 250px;">
                 <div class="client-avatar" style="background:#fef3c7; color:#d97706;">${caso.repartidor.foto}</div>
                 <div class="client-details">
                     <span class="client-name">Repartidor: ${caso.repartidor.nombre}</span>
@@ -1017,10 +1054,42 @@ function getNodoMasCercano(lat, lng) {
     return closestNode;
 }
 
+// ============================================================
+// ZONAS DE PELIGRO
+// ============================================================
+window.openZonasPeligroModal = function() {
+    const container = document.getElementById('zonasList');
+    let html = '';
+    Object.keys(nodosDisponibles).forEach(nodo => {
+        const isChecked = nodosBloqueados.has(nodo) ? 'checked' : '';
+        html += `
+            <div style="display: flex; align-items: center; padding: 5px 0; border-bottom: 1px solid #334155;">
+                <input type="checkbox" id="chk_${nodo}" value="${nodo}" ${isChecked} style="margin-right: 10px;">
+                <label for="chk_${nodo}" style="color: #cbd5e1; cursor: pointer;">${nodo.replace(/_/g, ' ')}</label>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+    openModal('modalZonasPeligro');
+};
+
+window.guardarZonasPeligro = function() {
+    const checkboxes = document.querySelectorAll('#zonasList input[type="checkbox"]');
+    nodosBloqueados.clear();
+    checkboxes.forEach(chk => {
+        if (chk.checked) nodosBloqueados.add(chk.value);
+    });
+    localStorage.setItem('nodosBloqueados', JSON.stringify([...nodosBloqueados]));
+    closeModal('modalZonasPeligro');
+    showToast("Zonas de peligro guardadas.", "success");
+    renderMap(currentIndex); // Repintar mapa actual
+};
+
 function buildAdjList() {
     const adj = {};
     Object.keys(nodosDisponibles).forEach(n => adj[n] = []);
     aristas.forEach(a => {
+        if (nodosBloqueados.has(a.from) || nodosBloqueados.has(a.to)) return; // Ignorar aristas bloqueadas
         const w = a.weight || a.baseTime;
         adj[a.from].push({ node: a.to, weight: w });
         adj[a.to].push({ node: a.from, weight: w });
@@ -1148,8 +1217,15 @@ document.getElementById('formPedido').addEventListener('submit', (e) => {
     btnSubmit.disabled = true;
     btnSubmit.innerText = "Calculando ruta...";
 
+    const repartidorSeleccionado = listaRepartidores[repIndex];
+    let osrmProfile = 'driving';
+    if (repartidorSeleccionado.tipo === 'Bicicleta') {
+        osrmProfile = 'bike';
+    }
+
     const router = L.Routing.osrmv1({
-        serviceUrl: 'https://router.project-osrm.org/route/v1'
+        serviceUrl: 'https://router.project-osrm.org/route/v1',
+        profile: osrmProfile
     });
 
     router.route([
@@ -1165,7 +1241,14 @@ document.getElementById('formPedido').addEventListener('submit', (e) => {
         }
 
         const route = routes[0];
-        const costoMinutos = Math.ceil(route.summary.totalTime / 60);
+        
+        // El servidor público de OSRM suele devolver tiempos de 'auto' por defecto.
+        // Aplicamos un multiplicador para que los tiempos sean realistas según el vehículo.
+        let factorTiempo = 1.0;
+        if (repartidorSeleccionado.tipo === 'Bicicleta') factorTiempo = 1.8;
+        else if (repartidorSeleccionado.tipo === 'Moto') factorTiempo = 0.8;
+        
+        const costoMinutos = Math.ceil((route.summary.totalTime / 60) * factorTiempo);
         
         // Simular comparaciones asignando a nodos cercanos
         const origenNodo = getNodoMasCercano(coordOrigen.lat, coordOrigen.lng);
@@ -1237,5 +1320,97 @@ document.getElementById('formPedido').addEventListener('submit', (e) => {
         
         // Iniciar simulación automática del estado
         window.simularProgresoPedido(nuevoRecorridoIndex);
+    });
+});
+
+// ============================================================
+// EDITAR PEDIDO
+// ============================================================
+window.editingCasoIndex = null;
+window.openEditModal = function(casoIndex) {
+    window.editingCasoIndex = casoIndex;
+    const caso = casos[casoIndex];
+    document.getElementById('editTipoVehiculo').value = caso.repartidor.tipo || "Moto";
+    openModal('modalEditarPedido');
+};
+
+document.getElementById('formEditarPedido')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (window.editingCasoIndex === null) return;
+    
+    const caso = casos[window.editingCasoIndex];
+    const nuevoTipo = document.getElementById('editTipoVehiculo').value;
+    
+    if (caso.repartidor.tipo === nuevoTipo) {
+        closeModal('modalEditarPedido');
+        return;
+    }
+    
+    const btnSubmit = e.target.querySelector('button[type="submit"]');
+    btnSubmit.disabled = true;
+    btnSubmit.innerText = "Recalculando...";
+    
+    let osrmProfile = 'driving';
+    let tarifaMin = 2.5;
+    let foto = "🏍️";
+    if (nuevoTipo === 'Bicicleta') {
+        osrmProfile = 'bike';
+        tarifaMin = 1.5;
+        foto = "🚴";
+    } else if (nuevoTipo === 'Camioneta') {
+        osrmProfile = 'driving';
+        tarifaMin = 4.0;
+        foto = "🛻";
+    }
+    
+    const router = L.Routing.osrmv1({
+        serviceUrl: 'https://router.project-osrm.org/route/v1',
+        profile: osrmProfile
+    });
+    
+    router.route([
+        L.Routing.waypoint(caso.coordOrigen),
+        L.Routing.waypoint(caso.coordDestino)
+    ], (err, routes) => {
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = "Guardar y Recalcular Ruta";
+        
+        if (err || !routes || routes.length === 0) {
+            showToast("No se pudo recalcular la ruta.", "error");
+            closeModal('modalEditarPedido');
+            return;
+        }
+        
+        const route = routes[0];
+        
+        // Multiplicador para tiempos realistas
+        let factorTiempo = 1.0;
+        if (nuevoTipo === 'Bicicleta') factorTiempo = 1.8;
+        else if (nuevoTipo === 'Moto') factorTiempo = 0.8;
+        
+        const costoMinutos = Math.ceil((route.summary.totalTime / 60) * factorTiempo);
+        
+        let nombreBase = caso.repartidor.nombre.replace(/\s*\(.*\)/, "");
+        
+        caso.repartidor = {
+            ...caso.repartidor,
+            nombre: `${nombreBase} (${nuevoTipo})`,
+            tipo: nuevoTipo,
+            foto: foto,
+            tarifaMin: tarifaMin
+        };
+        
+        caso.costo_minutos = costoMinutos;
+        caso.routeCoordinates = route.coordinates;
+        caso.explicacion = `**1. RESUMEN EJECUTIVO**\nSe recalculó la ruta real utilizando el servicio OSRM (${osrmProfile}). El tiempo estimado de viaje en ${nuevoTipo} es de ${costoMinutos} minutos para una distancia de ${(route.summary.totalDistance / 1000).toFixed(2)} km.`;
+        
+        localStorage.setItem('casos', JSON.stringify(casos));
+        showToast("Vehículo cambiado y ruta recalculada.", "success");
+        closeModal('modalEditarPedido');
+        
+        if (currentIndex === window.editingCasoIndex) {
+            renderTabs();
+            renderCaso(currentIndex);
+        }
     });
 });
