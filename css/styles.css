@@ -170,6 +170,33 @@
             background: #fef2f2;
         }
 
+        /* BOTÓN DE TEMA (DARK MODE) */
+        .btn-theme {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 1.2rem;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .btn-theme:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+
         /* TARJETA PRINCIPAL */
         .card {
             background: white;
@@ -586,6 +613,8 @@
         body.dark-mode .algo-card .algo-name { color: #f8fafc; }
         body.dark-mode .algo-card .path-preview { background: #0f172a; color: #cbd5e1; border-color: #334155; }
         body.dark-mode .btn-trafico { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+        body.dark-mode .btn-theme { background: rgba(0, 0, 0, 0.3); border-color: rgba(255, 255, 255, 0.1); color: #facc15; }
+        body.dark-mode .btn-theme:hover { background: rgba(0, 0, 0, 0.5); }
         body.dark-mode .btn-trafico:hover { background: #334155; }
         body.dark-mode .btn-trafico.active { background: #450a0a; color: #f87171; border-color: #7f1d1d; }
         body.dark-mode .route-meta { background: #0f172a; }
@@ -710,12 +739,29 @@
                 flex-direction: column;
                 gap: 0.5rem;
             }
+            
+            /* Admin controls y simulación de a dos */
+            .admin-controls, .sim-controls {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+            }
+            
             .controls-panel button {
                 width: 100%;
                 justify-content: center;
                 margin-bottom: 0;
                 font-size: 0.85rem;
                 padding: 0.7rem 0.5rem;
+            }
+            
+            /* Ocultar texto y centrar icono */
+            .admin-controls .btn-text {
+                display: none;
+            }
+            
+            .admin-controls .btn-admin i {
+                font-size: 1.25rem;
+                margin: 0;
             }
             
             .client-info, .driver-info {
